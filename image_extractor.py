@@ -1,5 +1,7 @@
 import os
+
 from docx import Document
+
 
 def extract_images_from_docx(docx_path: str):
     if not os.path.isfile(docx_path):
