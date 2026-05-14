@@ -9,18 +9,21 @@ from PIL import Image
 
 try:
     from docx import Document
-except Exception as e:
+except Exception:
     Document = None
 
 
 def _check_imports():
     if Document is None:
-        raise RuntimeError("python-docx is required. Install with: pip install python-docx")
+        raise RuntimeError(
+            "python-docx is required. Install with: pip install python-docx"
+        )
 
 
 def _load_realesrgan_model(device="cpu"):
     try:
         from realesrgan import RealESRGAN
+
         model = RealESRGAN(torch.device(device), scale=4)
         model.load_weights(RealESRGAN.download_weights("RealESRGAN_x4plus"))
         return model
@@ -34,7 +37,9 @@ def upscale_pillow(img: Image.Image, scale: float) -> Image.Image:
     return img.resize(new_size, Image.LANCZOS)
 
 
-def upscale_realesrgan(img: Image.Image, scale: float, model=None) -> Optional[Image.Image]:
+def upscale_realesrgan(
+    img: Image.Image, scale: float, model=None
+) -> Optional[Image.Image]:
     if model is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = _load_realesrgan_model(device=device)
@@ -70,15 +75,23 @@ def upscale_ncnn_cli(img_bytes: bytes, scale: float) -> Optional[bytes]:
             ncnn_scale = 4
         cmd = [exe, "-i", in_path, "-o", out_path, "-s", str(ncnn_scale)]
         try:
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(
+                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
             with open(out_path, "rb") as f:
                 return f.read()
         except Exception:
             return None
 
 
-def upscale_image_bytes(img_bytes: bytes, orig_format: str, scale: float, method: str, jpeg_quality: int,
-                        keep_format: bool) -> Optional[bytes]:
+def upscale_image_bytes(
+    img_bytes: bytes,
+    orig_format: str,
+    scale: float,
+    method: str,
+    jpeg_quality: int,
+    keep_format: bool,
+) -> Optional[bytes]:
     methods = []
     if method == "realesrgan":
         methods = ["realesrgan", "ncnn", "pillow"]
@@ -122,8 +135,14 @@ def upscale_image_bytes(img_bytes: bytes, orig_format: str, scale: float, method
     return None
 
 
-def process_docx_replace(input_docx: str, scale: float = 2.0, method: str = "pillow", jpeg_quality: int = 95,
-                         keep_format: bool = True, output_docx: Optional[str] = None) -> str:
+def process_docx_replace(
+    input_docx: str,
+    scale: float = 2.0,
+    method: str = "pillow",
+    jpeg_quality: int = 95,
+    keep_format: bool = True,
+    output_docx: Optional[str] = None,
+) -> str:
     _check_imports()
     if not input_docx.lower().endswith(".docx"):
         raise ValueError("Only .docx files are supported.")
@@ -154,7 +173,9 @@ def process_docx_replace(input_docx: str, scale: float = 2.0, method: str = "pil
             if orig_fmt == "JPG":
                 orig_fmt = "JPEG"
 
-        new_bytes = upscale_image_bytes(blob, orig_fmt, scale, method, jpeg_quality, keep_format)
+        new_bytes = upscale_image_bytes(
+            blob, orig_fmt, scale, method, jpeg_quality, keep_format
+        )
         if new_bytes:
             try:
                 part._blob = new_bytes
@@ -170,13 +191,26 @@ def process_docx_replace(input_docx: str, scale: float = 2.0, method: str = "pil
 
 def cli():
     parser = argparse.ArgumentParser(
-        description="Upscale and REPLACE embedded images inside a .docx using python-docx.")
+        description="Upscale and REPLACE embedded images inside a .docx using python-docx."
+    )
     parser.add_argument("input", help="Path to input .docx")
-    parser.add_argument("--scale", type=float, default=2.0, help="Upscale factor (2, 3, 4...)")
-    parser.add_argument("--method", choices=["pillow", "realesrgan", "ncnn"], default="pillow",
-                        help="Upscaling backend")
-    parser.add_argument("--jpeg-quality", type=int, default=95, help="JPEG quality for saving (if JPEG)")
-    parser.add_argument("--convert-to-png", action="store_true", help="Force saving all images as PNG inside DOCX")
+    parser.add_argument(
+        "--scale", type=float, default=2.0, help="Upscale factor (2, 3, 4...)"
+    )
+    parser.add_argument(
+        "--method",
+        choices=["pillow", "realesrgan", "ncnn"],
+        default="pillow",
+        help="Upscaling backend",
+    )
+    parser.add_argument(
+        "--jpeg-quality", type=int, default=95, help="JPEG quality for saving (if JPEG)"
+    )
+    parser.add_argument(
+        "--convert-to-png",
+        action="store_true",
+        help="Force saving all images as PNG inside DOCX",
+    )
     args = parser.parse_args()
 
     out = process_docx_replace(
